@@ -1,0 +1,21 @@
+Analysis of issues reported in example_largetest2-pv_.py
+Date: 2025-02-18 12:00:00
+
+1. "offloading layers to CPU/GPU... finished offloading layers to CPU/GPU but the message or prompt has not been loaded yet"
+   - Logic: The `offload_layers_to_cpu` function is a memory management step performed during model initialization. It moves specific model layers to CPU RAM (pinning them) to enable the "load-compute-unload" cycle during inference. This setup must happen *before* any data (prompt/message) is processed to ensure the model structure is correctly distributed across devices. It is not dependent on the input prompt.
+
+2. "`torch_dtype` is deprecated! Use `dtype` instead!"
+   - Findings: The `ollm` library correctly uses `dtype=torch.bfloat16` in `src/ollm/inference.py` when calling `from_pretrained`. The warning observed is likely emitted by the underlying `transformers` library or related dependencies due to internal handling or deprecation checks in the specific version installed. Since the codebase uses `dtype`, it is compliant with the warning's advice.
+
+3. "Warning: flash_attention_2 is not imported."
+   - Findings: This warning indicates that the `flash-attn` library is not installed in the environment. The model falls back to standard attention mechanisms. This affects speed and maximum context length but does not prevent execution. To resolve, one would need to install `flash-attn`.
+
+4. "The attention mask is not set and cannot be inferred..."
+   - Fix: The `apply_chat_template` method with `return_tensors='pt'` returns a raw tensor of input IDs. Since the `pad_token_id` matches the `eos_token_id` in this model configuration, the model cannot automatically infer which tokens are padding.
+   - Solution: Explicitly created an `attention_mask` using `torch.ones_like(input_ids)` and passed it to `model.generate`.
+
+5. "reasoning_effort='minimal'"
+   - Fix: The `reasoning_effort` parameter is not supported by the current tokenizer configuration or library version. It has been removed from the `apply_chat_template` call.
+
+6. Script Updates
+   - The script `scripts/example_largetest2-pv_.py` has been created with these fixes implemented.
