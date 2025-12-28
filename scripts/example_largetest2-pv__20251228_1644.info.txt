@@ -1,0 +1,20 @@
+This file explains the changes and clarifications for the script `scripts/example_largetest2-pv_.py`.
+
+Findings and Fixes:
+
+1.  **Offloading Layers Logs:**
+    The logs "offloading layers to CPU/GPU..." occur immediately after model initialization because `o.offload_layers_to_cpu(layers_num=48)` is called. This function preloads and pins the specified number of model layers to CPU RAM to optimize the load-compute-unload cycle. This is an optimization step that must happen before any prompt processing begins. The confusion arises because this operation is independent of processing input messages; it prepares the model infrastructure. Thus, it is expected behavior, not a logical error.
+
+2.  **`reasoning_effort` Argument:**
+    The error related to `reasoning_effort="minimal"` in `apply_chat_template` was fixed by removing this argument. The current setup does not support this parameter.
+
+3.  **Attention Mask Warning:**
+    The warning "The attention mask is not set..." occurs because `pad_token_id` is the same as `eos_token_id`, preventing the model from automatically inferring the mask. To fix this, an explicit attention mask was created (`torch.ones_like(input_ids)`) and passed to the `generate` method. This ensures reliable results and suppresses the warning.
+
+4.  **`torch_dtype` Deprecation Warning:**
+    The warning "`torch_dtype` is deprecated! Use `dtype` instead!" stems from internal behavior in dependent libraries (likely `transformers` or `accelerate` interactions). The code in `src/ollm/inference.py` correctly uses `dtype`. Since this warning cannot be fixed by changing the script's logic (as the correct argument is already being used internally), it has been suppressed in the script using `warnings.filterwarnings` to keep the output clean.
+
+5.  **`flash_attention_2` and Fast Path Warnings:**
+    The warnings "flash_attention_2 is not imported" and "The fast path is not available..." indicate that optional acceleration libraries are not installed in the environment. The `ollm` library automatically falls back to standard PyTorch implementations. These are informative warnings and do not stop the script from functioning.
+
+The script `scripts/example_largetest2-pv_.py` has been updated with these fixes.
