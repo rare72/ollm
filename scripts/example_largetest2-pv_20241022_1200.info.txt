@@ -1,0 +1,30 @@
+Script: scripts/example_largetest2-pv_.py
+Date: 2024-10-22 12:00
+Author: Jules
+
+Findings and Fixes Report:
+
+1. Early Logs from `offload_layers_to_cpu`:
+   The user noted that logs for offloading layers appear before the message/prompt is loaded.
+   Finding: This is expected behavior. The `offload_layers_to_cpu` function physically moves and pins specific layers of the neural network model to CPU RAM. This is a model initialization step that optimizes the "load-compute-unload" cycle for large models on limited VRAM. It operates on the model structure itself, not on the input data. Therefore, it must execute before any inference (prompt processing) begins.
+
+2. `torch_dtype` Deprecation Warning:
+   Warning: "`torch_dtype` is deprecated! Use `dtype` instead!"
+   Finding: The `src/ollm` library correctly uses the `dtype` argument in its `from_pretrained` calls (e.g., `dtype=torch.bfloat16`). However, the warning may still be triggered by internal calls within the `transformers` or `accelerate` libraries when they process the configuration or legacy arguments.
+   Fix: Added `warnings.filterwarnings("ignore", message=".*torch_dtype is deprecated.*")` to the script to suppress this noise, as the user-facing code is using the correct API.
+
+3. `flash_attention_2` Warning:
+   Warning: "flash_attention_2 is not imported..."
+   Finding: This warning indicates that the optional `flash_attn` library is not installed in the environment. The `ollm` library detects this and falls back to a standard attention implementation.
+   Result: The script will run but with limited context length and potentially slower performance. This is an environment limitation, not a code bug.
+
+4. Attention Mask Warning:
+   Warning: "The attention mask is not set and cannot be inferred..."
+   Finding: When `apply_chat_template` is used with `return_tensors="pt"`, it returns a tensor of Input IDs. The `generate` function requires an `attention_mask` to correctly handle padding, especially when the pad token is identical to the EOS token (which is common). Without it, the model cannot distinguish between valid tokens and padding.
+   Fix: Explicitly created an attention mask using `torch.ones_like(input_ids)` and passed it to the `o.model.generate` function. This ensures reliable generation results.
+
+5. `reasoning_effort` Argument:
+   Finding: The argument `reasoning_effort="minimal"` passed to `apply_chat_template` is not supported by the current tokenizer or library version.
+   Fix: Removed this argument from the `apply_chat_template` call.
+
+The script `scripts/example_largetest2-pv_.py` has been updated with these fixes to ensure correct execution.
