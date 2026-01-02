@@ -1,7 +1,10 @@
 import os, requests, zipfile
 import torch
+import warnings
 from transformers import AutoTokenizer, AutoProcessor, AutoConfig
 from .utils import Stats, file_get_contents
+
+warnings.filterwarnings("ignore", message=".*torch_dtype is deprecated.*")
 from .gds_loader import GDSWeights, DenseWeightsLoader, MoEWeightsLoader, SingleDenseWeightsLoader
 from .kvcache import KVCache
 
