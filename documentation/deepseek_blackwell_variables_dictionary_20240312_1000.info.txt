@@ -1,0 +1,35 @@
+Variables Dictionary for DeepSeek-V3 Blackwell Optimization
+=============================================================
+Date: 2024-03-12 10:00:00
+Context: DeepSeek-V3 Blackwell Optimization Logic (deepseek.py)
+
+1. Variables and Types
+----------------------
+- hidden_states: torch.Tensor
+  - Location: GPU (cuda:0)
+  - Type: torch.bfloat16
+  - Description: The main activation tensor flowing through the model. Must NEVER be moved to CPU during the "Flowing" weights process.
+
+- layer.self_attn.q_proj.weight (and other weights): torch.Tensor
+  - Location: CPU (RAM) -> GPU (cuda:0) -> Deleted
+  - Lifecycle: Loaded from disk via kvikio/GDS -> Copied to GPU -> Computation -> Deleted from GPU.
+  - Type: torch.bfloat16 (usually)
+
+- self.layers: list
+  - Location: RAM (metadata only)
+  - Description: Contains layer objects. Weights are loaded lazily.
+
+2. Ghost Variables (Do NOT Use)
+-------------------------------
+- offload_buffer: Does not exist in the optimized path. We do not buffer weights in CPU RAM.
+- stream_buffer: Conceptually exists but is handled by `kvikio`, not exposed as a Python variable.
+
+3. Logic Explanation
+--------------------
+The "offload_layers_to_cpu" function in `deepseek.py` was modified to NOT just move layers to CPU RAM, but to completely unload them to enforce a reload from disk. This simulates the memory-constrained environment where weights "flow" from disk to GPU and back (or are discarded), while `hidden_states` must remain "stationary" on the GPU to avoid PCI-e bottlenecks.
+
+The error "The attention mask is not set..." occurs because `tokenizer.apply_chat_template` with `return_tensors='pt'` creates a tensor of IDs but not the mask. When `pad_token_id` equals `eos_token_id`, the model cannot guess which tokens are padding. Explicitly creating `attention_mask = torch.ones_like(input_ids)` fixes this.
+
+The warning "flash_attention_2 is not imported" is due to missing optional dependencies. The system falls back to standard attention, which is slower but functional.
+
+"torch_dtype is deprecated" is a benign warning from the `transformers` library when `dtype` is used in `from_pretrained`. We suppress it using `warnings.filterwarnings`.
