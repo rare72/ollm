@@ -1,0 +1,30 @@
+Logic and Findings Report for example_largetest2-pv_
+Date: 2026-01-05 16:39
+
+1. Offloading Layers Logic
+The user noted: "offloading layers to CPU/GPU... finished ... but the message or prompt has not been loaded yet, lol!!!"
+Explanation: The `offload_layers_to_cpu` function is designed to move the *model weights* (parameters) between GPU and CPU to manage VRAM usage. This process must happen *after* the model is initialized (`ini_model`) but *before* any inference begins (processing the prompt). The "message or prompt" is processed later during `apply_chat_template` and `model.generate`. Therefore, the log order is correct and expected: Load Model -> Offload Weights -> Process Prompt -> Generate.
+
+2. `torch_dtype` Deprecation Warning
+The warning "`torch_dtype` is deprecated! Use `dtype` instead!" was observed.
+Findings: The `ollm` library code (specifically in `src/ollm/inference.py` and `src/ollm/qwen3_next.py`) correctly uses the `dtype` argument when calling `from_pretrained`, as recommended by recent Transformers versions.
+Reason: This warning likely originates from within the internal logic of the `transformers` library or its interaction with the custom model wrappers, possibly where `dtype` is mapped back to `torch_dtype` internally or checked in a configuration object. Since the user code and library code are using `dtype` as requested, this warning is a false positive or an internal library artifact that can be safely ignored in this context, provided `dtype` is indeed being respected (which it is, as `bfloat16` is used).
+
+3. `flash_attention_2` Warning
+"Warning: flash_attention_2 is not imported. The context length will be limited"
+Explanation: This warning indicates that the `flash_attn` library is not installed in the current environment. The `ollm` library detects this and falls back to a standard attention implementation. This is expected behavior when optional acceleration dependencies are missing.
+
+4. Attention Mask Issue
+Error: "The attention mask is not set and cannot be inferred from input..."
+Fix: When generating with a batch size of 1, if the tokenizer's `pad_token_id` is the same as the `eos_token_id` (or if padding is not explicitly handled), the model cannot automatically determine which tokens are padding.
+Solution: The script now manually creates an `attention_mask` of ones (since there is no padding in a single prompt) using `torch.ones_like(input_ids)` and passes it to `model.generate`. This explicitly tells the model to attend to all input tokens.
+
+5. `reasoning_effort` Argument
+Issue: The `apply_chat_template` method does not support the `reasoning_effort` argument in this version of the tokenizer/library.
+Fix: The argument `reasoning_effort="minimal"` was removed from the `apply_chat_template` call in the script.
+
+Summary of Changes in Script:
+- Removed `reasoning_effort` argument.
+- Added manual creation of `attention_mask`.
+- Passed `attention_mask` to `model.generate`.
+- Added `sys.path.append` to ensure `ollm` is importable.
