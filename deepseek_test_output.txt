@@ -1,0 +1,21 @@
+Warning: kvikio is not imported
+
+[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.
+Please ensure the environment is set up with the required custom CUDA kernels.
+
+loading model from ./models/deepseek-moe
+Warning: flash_attention_2 is not imported. The context length will be limited
+Traceback (most recent call last):
+  File "/app/scripts/example_deepseek_moe.py", line 63, in <module>
+    o.ini_model(models_dir="./models/", force_download=False)
+  File "/app/scripts/../src/ollm/inference.py", line 88, in ini_model
+    self.load_model(model_dir)
+  File "/app/scripts/../src/ollm/inference.py", line 142, in load_model
+    self.model = deepseek.MyDeepseekForCausalLM.from_pretrained(model_dir, dtype=torch.bfloat16, device_map="cpu", attn_implementation=get_attn_implementation(), low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4806, in from_pretrained
+    raise ValueError(
+ValueError: Using a `device_map`, `tp_plan`, `torch.device` context manager or setting `torch.set_default_device(device)` requires `accelerate`. You can install it with `pip install accelerate`

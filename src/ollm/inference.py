@@ -160,6 +160,23 @@ class Inference:
 		self.model.to(self.device)
 		if not hasattr(self, "tokenizer"): self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
+		# Stability Fix: Resize embeddings if tokenizer is larger than model config or actual weights
+		# This prevents "index out of bounds" errors in DeepSeek-MoE and similar architectures
+		if hasattr(self.model, "config") and hasattr(self, "tokenizer"):
+			vocab_size = self.model.config.vocab_size
+			actual_vocab_size = vocab_size
+
+			# Check actual embedding layer size if accessible
+			if hasattr(self.model, "get_input_embeddings"):
+				emb_layer = self.model.get_input_embeddings()
+				if hasattr(emb_layer, "weight"):
+					actual_vocab_size = emb_layer.weight.shape[0]
+
+			target_size = len(self.tokenizer)
+			if target_size > actual_vocab_size or target_size > vocab_size:
+				print(f"[Inference] Resizing model embeddings from {actual_vocab_size} (config: {vocab_size}) to {target_size}")
+				self.model.resize_token_embeddings(target_size)
+
 	
 	def offload_layers_to_cpu(self, **args):
 		self.model.offload_layers_to_cpu(**args)
