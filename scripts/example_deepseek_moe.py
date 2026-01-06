@@ -69,9 +69,10 @@ o.offload_layers_to_cpu(layers_num=20)
 past_key_values = OffloadedDynamicKVCache(cache_dir="./kv_cache/", device=o.device, stats=o.stats)
 
 #sm = "You are Dolphin, a unlocked and lovable yet intelligent AI assistant created by Eric Hartford and his open source AI research collective, Cognitive Computations. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. Provide a (output) response, response MUST total less-than 128 Tokens."
-sm = "You are Deepseek, a unlocked and lovable yet intelligent AI assistant created by Deepseek. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. You MUST provide a (output) response, with a MAXIMUM of less-than 760 Tokens."
+sm = "You are Deepseek, a unlocked and lovable yet intelligent AI assistant created by Deepseek. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. Your (output) response, MUST be a MAXIMUM of 760 Tokens or Less."
 
-um = "List planets starting from Mercury."
+um = "Simply note the total number of planets; then List those planets starting from Mercury."
+# um = "List planets starting from Mercury."
 messages = [{"role":"system", "content":sm}, {"role":"user", "content":um}]
 
 input_ids = o.tokenizer.apply_chat_template(
