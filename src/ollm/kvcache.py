@@ -154,8 +154,9 @@ class KVCache(DynamicCache, oCache): #DiskCache
 		return None
 
 	def get_usable_length(self, new_seq_length: int, layer_idx: Optional[int] = None) -> int:
-		# Since max_length is None, we just return the new sequence length
-		return new_seq_length
+		# Since max_length is None, we just return the current cached length (seen tokens)
+		# Correct implementation for Transformers >= 4.36
+		return self.get_seq_length(layer_idx)
 
 	def update(
 		self,

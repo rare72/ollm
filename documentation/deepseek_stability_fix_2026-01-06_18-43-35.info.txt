@@ -1,0 +1,23 @@
+Summary of Changes:
+Implemented a critical stability fix for the "device-side assert" crash (Index Out of Bounds) occurring during DeepSeek-MoE generation. The root cause was an incorrect implementation of `get_usable_length` in `OffloadedDynamicKVCache` (and `KVCache`), which returned the *incoming* sequence length instead of the *past* sequence length. This caused the model to miscalculate the total sequence length for Rotary Position Embeddings (RoPE), leading to `position_ids` exceeding the cached embedding size during the first generation step.
+
+Detailed Implementation Notes:
+- Modified `src/ollm/kvcache_offload.py`:
+  - Updated `OffloadedDynamicKVCache.get_usable_length` to return `self.get_seq_length(layer_idx)` (the number of tokens already in the cache) instead of `new_seq_length`.
+- Modified `src/ollm/kvcache.py`:
+  - Applied the same fix to the `KVCache` class for consistency.
+- This ensures that `kv_seq_len` in `DeepseekAttention.forward` is correctly calculated as `current_seq_len + past_seq_len`, aligning with `position_ids` generation logic and preventing out-of-bounds access.
+
+Fixes & Caveats:
+- Fixes `RuntimeError: CUDA error: device-side assert triggered` referencing `vectorized_gather_kernel` and `apply_rotary_pos_emb`.
+- This fix is mandatory for any model using `DynamicCache` with this library, especially DeepSeek and Qwen which rely on accurate `kv_seq_len` for RoPE.
+- The `torch.Size([0])` warnings observed during initialization are confirmed to be artifacts of the lazy loading mechanism (monkey-patched `load_layer_weights` in `forward`) and do not indicate a fatal error, provided the weights are loaded correctly before computation.
+
+Usage Instructions:
+- Run DeepSeek inference as usual:
+  `python3 scripts/example_deepseek_moe.py`
+- Ensure `accelerate` is installed.
+- Requires `TORCH_USE_CUDA_DSA=1` in the environment only if debugging further index errors, but this fix resolves the known crash.
+
+Technical Metrics:
+- Confirmed logic flaw: `get_usable_length` returning `1` (new token count) instead of `102` (past length) caused `kv_seq_len` to be `2` instead of `103`, crashing when `position_ids` accessed index `102`.
