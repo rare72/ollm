@@ -1,0 +1,31 @@
+Warning: kvikio is not imported
+
+[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.
+Please ensure the environment is set up with the required custom CUDA kernels.
+
+loading model from ./models/deepseek-moe
+Warning: flash_attention_2 is not imported. The context length will be limited
+Traceback (most recent call last):
+  File "/app/scripts/example_deepseek_moe.py", line 63, in <module>
+    o.ini_model(models_dir="./models/", force_download=False)
+  File "/app/scripts/../src/ollm/inference.py", line 88, in ini_model
+    self.load_model(model_dir)
+  File "/app/scripts/../src/ollm/inference.py", line 142, in load_model
+    self.model = deepseek.MyDeepseekForCausalLM.from_pretrained(model_dir, dtype=torch.bfloat16, device_map="cpu", attn_implementation=get_attn_implementation(), low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 5048, in from_pretrained
+    ) = cls._load_pretrained_model(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 5341, in _load_pretrained_model
+    mismatched_keys, mismatched_shapes = _find_mismatched_keys(
+                                         ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 1453, in _find_mismatched_keys
+    state_dict = load_state_dict(
+                 ^^^^^^^^^^^^^^^^
+  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/transformers/modeling_utils.py", line 484, in load_state_dict
+    with safe_open(checkpoint_file, framework="pt") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: ./models/deepseek-moe/model-00001-of-00007.safetensors

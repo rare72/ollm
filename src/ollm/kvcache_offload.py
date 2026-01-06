@@ -48,7 +48,7 @@ class OffloadedDynamicKVCache(DynamicCache):
 		return None
 
 	def get_usable_length(self, new_seq_length: int, layer_idx: Optional[int] = None) -> int:
-		return new_seq_length
+		return self.get_seq_length(layer_idx)
 
 	def _get_paths(self, layer_idx):
 		return (
