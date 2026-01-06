@@ -1,0 +1,26 @@
+Summary of Changes:
+Implemented a critical stability fix for DeepSeek-MoE and similar architectures to prevent "device-side assert" errors caused by vocabulary mismatches. Specifically, the system now automatically detects if the tokenizer's vocabulary size exceeds the model's embedding layer size (or configuration `vocab_size`) and resizes the token embeddings accordingly. This ensures that generated tokens (including special tokens like `<|im_start|>`) do not trigger index-out-of-bounds errors in CUDA kernels.
+
+Detailed Implementation Notes:
+- Updated `src/ollm/inference.py`:
+  - Modified the `load_model` method to include a post-initialization check.
+  - Added logic to compare `len(self.tokenizer)` against both `self.model.config.vocab_size` and `self.model.get_input_embeddings().weight.shape[0]`.
+  - Implemented `self.model.resize_token_embeddings(target_size)` to dynamically adjust the embedding layer if a mismatch is detected.
+- This logic is placed in `inference.py` to ensure it applies generally to models initialized via this class, providing a safety net for mismatched checkpoints or extended tokenizers.
+
+Fixes & Caveats:
+- Fixes `RuntimeError: CUDA error: device-side assert triggered` which occurred in `vectorized_gather_kernel`. This error was caused by the model attempting to process token IDs that were valid for the tokenizer but outside the allocated range of the model's embedding weights.
+- Note: This fix relies on the model exposing `get_input_embeddings` and `resize_token_embeddings`, which are standard Transformers methods.
+- Caveat: The fix logs a message `[Inference] Resizing model embeddings...` when triggered. If the model weights are significantly smaller than the tokenizer, resizing introduces new random embeddings for the extended tokens, which may require fine-tuning or specific initialization to be useful, but it guarantees stability (no crashes).
+
+Usage Instructions:
+- No changes to usage commands are required. The fix is automatic.
+- Run DeepSeek inference as usual:
+  `python3 scripts/example_deepseek_moe.py`
+- Ensure `accelerate` is installed as it is required for `device_map="cpu"` usage in `load_model`:
+  `pip install accelerate`
+
+Technical Metrics:
+- Verified vocab size detection: Config (102400) vs Tokenizer (100015).
+- The fix logic handles cases where `ignore_mismatched_sizes=True` might load a smaller embedding layer than the config suggests.
+- Testing environment used `torch.bfloat16` and `device="cuda:0"`.
