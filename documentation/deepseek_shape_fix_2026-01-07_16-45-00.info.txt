@@ -1,0 +1,23 @@
+Summary of Changes:
+Resolved a critical "shape mismatch" error (RuntimeError: shape '[1, 1, 2048]' is invalid for input of size 210944) in DeepSeek-MoE generation. The root cause was that `transformers` logic evaluated `OffloadedDynamicKVCache` as empty (False) because `len(cache)` returned 0 (due to empty `key_cache` in an environment using `self.layers`), causing `position_ids` to NOT be sliced during generation. This resulted in the attention mechanism processing the full sequence length (103 tokens) instead of just the new token (1 token) during decoding, breaking the reshape operation.
+
+Detailed Implementation Notes:
+- Modified `src/ollm/kvcache_offload.py`:
+    - Implemented `__len__` in `OffloadedDynamicKVCache` to check both `self.layers` and `self.key_cache` and return the correct layer count. This ensures `bool(cache)` evaluates to True when data exists.
+    - Updated `update` method logic to prioritize `self.layers` if the attribute exists, removing a faulty condition (`and not hasattr(self, "key_cache")`) that prevented correct usage in environments where `key_cache` is initialized empty but `layers` is the intended storage.
+    - Fixed `VisibleDeprecationWarning` from CuPy by passing the CuPy array directly to `torch.utils.dlpack.from_dlpack(buf)` instead of using `.toDlpack()`.
+- Modified `src/ollm/kvcache.py`:
+    - Applied the same `__len__` implementation and `update` logic improvements to the in-memory `KVCache` class for consistency and robustness.
+    - Applied the same CuPy deprecation fix.
+
+Fixes & Caveats:
+- **Fix:** Solved `RuntimeError` in `DeepseekAttention.forward` where input tensor size (e.g., 210944) did not match the expected shape (e.g., [1, 1, 2048]) due to incorrect `position_ids` length (103 instead of 1).
+- **Fix:** Resolved `VisibleDeprecationWarning` regarding `cupy.from_dlpack`.
+- **Caveat:** This fix assumes that `DynamicCache` implementation in the environment either uses `key_cache` OR `layers` (a list of objects with `.keys`/`.values`). The new `__len__` implementation handles both.
+
+Usage Instructions:
+- Run `scripts/example_deepseek_moe.py` as usual. The crash should be resolved.
+- Ensure `PYTHONPATH=src` is set.
+
+Technical Metrics:
+- N/A

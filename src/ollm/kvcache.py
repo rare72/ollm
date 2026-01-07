@@ -150,6 +150,18 @@ class KVCache(DynamicCache, oCache): #DiskCache
 	def seen_tokens(self):
 		return self.get_seq_length()
 
+	def __len__(self):
+		"""
+		Returns the number of layers in the cache.
+		Explicit implementation is required because this class might populate `self.key_cache` OR `self.layers`
+		depending on the `DynamicCache` implementation in the environment.
+		"""
+		if hasattr(self, "layers") and len(self.layers) > 0:
+			return len(self.layers)
+		if hasattr(self, "key_cache"):
+			return len(self.key_cache)
+		return 0
+
 	def get_max_length(self) -> Optional[int]:
 		return None
 
@@ -167,7 +179,7 @@ class KVCache(DynamicCache, oCache): #DiskCache
 	) -> Tuple[torch.Tensor, torch.Tensor]:
 
 		# Debug fallback for AttributeError if DynamicCache implementation differs
-		if not hasattr(self, "key_cache") and hasattr(self, "layers"):
+		if hasattr(self, "layers"):
 			# Environment-specific DynamicCache uses 'layers' list
 			return self._update_layers_variant(key_states, value_states, layer_idx, cache_kwargs)
 

@@ -39,6 +39,20 @@ class OffloadedDynamicKVCache(DynamicCache):
 	def seen_tokens(self):
 		return self.get_seq_length()
 
+	def __len__(self):
+		"""
+		Returns the number of layers in the cache.
+		Explicit implementation is required because this class might populate `self.key_cache` OR `self.layers`
+		depending on the `DynamicCache` implementation in the environment.
+		If `__len__` returns 0, `bool(cache)` evaluates to False, causing logic errors in `transformers`
+		(e.g., skipping `position_ids` slicing in `prepare_inputs_for_generation`).
+		"""
+		if hasattr(self, "layers") and len(self.layers) > 0:
+			return len(self.layers)
+		if hasattr(self, "key_cache"):
+			return len(self.key_cache)
+		return 0
+
 	def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
 		"""Returns the sequence length of the cached states."""
 		# Override standard behavior which checks len(self.key_cache[0])
@@ -222,7 +236,8 @@ class OffloadedDynamicKVCache(DynamicCache):
 		dummy_v = torch.empty(0, device=value_states.device)
 
 		# Handle the "layers" vs "key_cache" difference
-		if hasattr(self, "layers") and not hasattr(self, "key_cache"):
+		# We prioritize 'layers' if it exists, regardless of 'key_cache' presence
+		if hasattr(self, "layers"):
 			# Custom DynamicCache implementation found in some environments
 			if layer_idx >= len(self.layers):
 				# Expand layers list if needed (though usually pre-filled)
