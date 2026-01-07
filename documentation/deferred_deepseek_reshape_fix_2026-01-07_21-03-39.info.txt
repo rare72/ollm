@@ -1,0 +1,20 @@
+Summary of Changes:
+Documenting a potential fix for "shape mismatch" errors in `DeepseekAttention` that was discussed but deferred. The primary crash (RoPE index out of bounds) was resolved by correcting KV Cache length reporting (`get_usable_length`). However, during debugging, a secondary potential issue regarding explicit reshaping of attention outputs was identified. This change is NOT applied to the codebase but is documented here for future reference if similar issues arise.
+
+Detailed Implementation Notes:
+- The potential issue lies in `src/ollm/modeling_deepseek.py` within the `DeepseekAttention.forward` method (and potentially `DeepseekFlashAttention2`).
+- Current code often uses `attn_output.reshape(bsz, q_len, self.hidden_size)`.
+- **Proposed Change:** Replace explicit `q_len` usage with `-1` to let PyTorch infer the dimension, which handles edge cases where batch size or sequence length might be inferred differently during generation steps.
+  - Change: `attn_output = attn_output.reshape(bsz, -1, self.hidden_size).contiguous()`
+- **Why Deferred:** The immediate "device-side assert" was caused by invalid `position_ids` due to incorrect KV cache length, not a reshape error. Applying this change without a reproduction of a shape mismatch error introduces unnecessary diffs and risk.
+
+Fixes & Caveats:
+- **Potential Fix For:** `RuntimeError: shape '[...]' is invalid for input of size [...]` during decoding, particularly if `q_len` (query length) does not match the output tensor size produced by the attention kernel.
+- **Caveat:** This change is purely defensive. If the attention kernel produces a tensor that doesn't match `bsz * q_len * hidden_size`, something is already fundamentally wrong (e.g., causal mask failure). Using `-1` masks the underlying dimension mismatch, which might make debugging harder if the tensor size is actually wrong.
+
+Usage Instructions:
+- If a shape mismatch error occurs in `DeepseekAttention`, apply the reshape fix described above to `src/ollm/modeling_deepseek.py`.
+- No action is needed for the current stable release.
+
+Technical Metrics:
+- N/A (Change deferred).
