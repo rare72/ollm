@@ -7,6 +7,7 @@ sys.path.append(src_path)
 
 from ollm import Inference, file_get_contents, TextStreamer
 from ollm.kvcache_offload import OffloadedDynamicKVCache
+from ollm.utils import ScriptHelper
 import torch
 from transformers import AutoTokenizer
 
@@ -60,7 +61,16 @@ class DebugStreamer(TextStreamer):
         super().put(value)
 
 o = Inference("deepseek-moe", device="cuda:0", logging=True)
+
+# Initialize housekeeping helper
+helper = ScriptHelper(o)
+helper.init()
+
 o.ini_model(models_dir="./models/", force_download=False)
+# Check activation function configuration now that model is loaded
+if hasattr(o.model, "config"):
+    helper.print_config(o.model.config)
+
 o.offload_layers_to_cpu(layers_num=20)
 
 # Initialize DiskCache. Note: This wipes the './kv_cache/' directory to ensure
@@ -115,4 +125,6 @@ outputs = o.model.generate(
 ).cpu()
 
 answer = o.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=False)
-print("\nFinal Answer:\n", answer)
+
+# Log Exit statistics
+helper.exit(o.tokenizer, input_ids, outputs, answer)

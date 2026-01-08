@@ -89,3 +89,56 @@ def remove_layers_weights(model):
                 )
 
 
+
+class ScriptHelper:
+    def __init__(self, inference_instance=None):
+        self.inference = inference_instance
+        self.start_time = None
+        self.end_time = None
+
+    def init(self):
+        self.start_time = time.time()
+        print(f"\n[INIT] Script started at {time.ctime(self.start_time)}")
+
+        # Check hidden_act if model is available (or will be)
+        # Since this might be called before model load, we might need to call it again or check later.
+        # But user wants an [INIT] section output.
+        if self.inference and hasattr(self.inference, 'model') and hasattr(self.inference.model, 'config'):
+            self._print_config(self.inference.model.config)
+
+    def print_config(self, config):
+        """Helper to print config details if they weren't ready at init"""
+        print(f"[INIT] Configuration loaded.")
+        if hasattr(config, 'hidden_act'):
+            print(f"[INIT] Model hidden_act: {config.hidden_act}")
+        elif hasattr(config, 'activation_function'):
+            print(f"[INIT] Model activation_function: {config.activation_function}")
+
+    def exit(self, tokenizer, input_ids, output_ids, final_answer):
+        self.end_time = time.time()
+        print(f"\n[EXIT] Script finished at {time.ctime(self.end_time)}")
+        if self.start_time:
+            duration = self.end_time - self.start_time
+            print(f"[EXIT] Duration: {duration:.2f} seconds")
+
+        # Calculate counts
+        input_count = input_ids.shape[1] if hasattr(input_ids, 'shape') else len(input_ids)
+
+        # Handle output_ids potentially being a list or tensor
+        if hasattr(output_ids, 'shape'):
+            total_tokens = output_ids.shape[1]
+        else:
+            total_tokens = len(output_ids)
+
+        # Calculate readable tokens from the final answer string
+        readable_count = 0
+        if tokenizer:
+             # encode without special tokens to get pure content count
+             readable_ids = tokenizer.encode(final_answer, add_special_tokens=False)
+             readable_count = len(readable_ids)
+
+        print(f"[EXIT] Total Input Prompt Tokens: {input_count}")
+        print(f"[EXIT] Total Context Tokens (Prompt + Generated): {total_tokens}")
+        print(f"[EXIT] Total Readable Tokens (Answer content): {readable_count}")
+
+        print("\nFinal Answer:\n", final_answer)
