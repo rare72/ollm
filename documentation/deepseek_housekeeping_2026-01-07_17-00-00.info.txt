@@ -1,0 +1,23 @@
+Summary of Changes:
+Added a `ScriptHelper` class to `src/ollm/utils.py` to standardize script logging and housekeeping. Updated `scripts/example_deepseek_moe.py` to use this helper for INIT and EXIT logging sections.
+
+Detailed Implementation Notes:
+- **`src/ollm/utils.py`**: Added `ScriptHelper` class.
+    - `init()`: Logs start time.
+    - `print_config(config)`: Logs model configuration details like `hidden_act` or `activation_function`.
+    - `exit(tokenizer, input_ids, output_ids, final_answer)`: Logs finish time, duration, and token counts (Input, Total Context, Readable Answer).
+- **`scripts/example_deepseek_moe.py`**: Integrated `ScriptHelper`.
+    - Calls `helper.init()` at the start.
+    - Calls `helper.print_config()` after model loading.
+    - Calls `helper.exit()` at the end to print summary metrics.
+
+Fixes & Caveats:
+- **Caveat:** Token counts and final response metrics are typically printed at the very end of the process after the generation is complete. Because the log cuts off during the execution of the `./Deepseek.forward` operations (in standard output logs), the final generation summary might not be captured if the script crashes or is terminated early.
+- **Note:** Ensure `PYTHONPATH=src` is set when running the script.
+
+Usage Instructions:
+- Run `scripts/example_deepseek_moe.py` to see the new INIT and EXIT sections.
+- The logs will now clearly show start/end times and token usage statistics.
+
+Technical Metrics:
+- N/A
