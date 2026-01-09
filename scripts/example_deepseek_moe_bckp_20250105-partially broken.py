@@ -6,8 +6,6 @@ src_path = os.path.join(current_dir, '..', 'src')
 sys.path.append(src_path)
 
 from ollm import Inference, file_get_contents, TextStreamer
-from ollm.kvcache_offload import OffloadedDynamicKVCache
-from ollm.utils import ScriptHelper
 import torch
 from transformers import AutoTokenizer
 
@@ -61,29 +59,19 @@ class DebugStreamer(TextStreamer):
         super().put(value)
 
 o = Inference("deepseek-moe", device="cuda:0", logging=True)
-
-# Initialize housekeeping helper
-helper = ScriptHelper(o)
-helper.init()
-
 o.ini_model(models_dir="./models/", force_download=False)
-# Check activation function configuration now that model is loaded
-if hasattr(o.model, "config"):
-    helper.print_config(o.model.config)
-
 o.offload_layers_to_cpu(layers_num=20)
 
 # Initialize DiskCache. Note: This wipes the './kv_cache/' directory to ensure
 # a fresh start and prevent "hallucinations" caused by mismatching prompt caches.
-# past_key_values = o.DiskCache(cache_dir="./kv_cache/")
-past_key_values = OffloadedDynamicKVCache(cache_dir="./kv_cache/", device=o.device, stats=o.stats)
+past_key_values = o.DiskCache(cache_dir="./kv_cache/")
 
-# NOTE: DeepSeek-MoE-16b-chat tokenizer documentation explicitly advises AGAINST using a system prompt.
-# "since the system prompt is not compatible with this version of our models, we DO NOT RECOMMEND including the system prompt in your input."
-# Reference: https://huggingface.co/deepseek-ai/deepseek-moe-16b-chat
+#sm = "You are Dolphin, a unlocked and lovable yet intelligent AI assistant created by Eric Hartford and his open source AI research collective, Cognitive Computations. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. Provide a (output) response, response MUST total less-than 128 Tokens."
+sm = "You are Deepseek, a unlocked and lovable yet intelligent AI assistant created by Deepseek. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. Your (output) response, MUST be a MAXIMUM of 760 Tokens or Less."
 
-um = "List planets starting from Mercury."
-messages = [{"role":"user", "content":um}]
+um = "Simply note the total number of planets; then use that to List planets starting from Mercury."
+# um = "List planets starting from Mercury."
+messages = [{"role":"system", "content":sm}, {"role":"user", "content":um}]
 
 input_ids = o.tokenizer.apply_chat_template(
     messages,
@@ -98,39 +86,17 @@ print(f"Pre-fill complete. Input tokens: {input_ids.shape[1]}")
 attention_mask = torch.ones_like(input_ids)
 
 # Initialize DebugStreamer with input_ids to compare against
-#debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=False)
-debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=True)
-
-
-# Explicitly handle stopping conditions to prevent runaway generation
-# This is critical for models that might not default to the correct EOS token when templates are manually manipulated
-eos_token_id = [o.tokenizer.eos_token_id]
-if hasattr(o.tokenizer, "convert_tokens_to_ids"):
-    # Common DeepSeek/OpenAI variants sometimes use <|EOT|> or similar
-    try:
-        eot_id = o.tokenizer.convert_tokens_to_ids("<|EOT|>")
-        if eot_id is not None and eot_id != o.tokenizer.unk_token_id:
-            eos_token_id.append(eot_id)
-    except:
-        pass
-
-print(f"Setting `pad_token_id` to `eos_token_id`:{o.tokenizer.eos_token_id} for open-end generation.")
+debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=False)
 
 outputs = o.model.generate(
     input_ids=input_ids,
     attention_mask=attention_mask,
     past_key_values=past_key_values,
-    max_new_tokens=768, # Reduced for debugging
+    max_new_tokens=768,
     streamer=debug_streamer,
-    #temperature=0.075,
-    #temperature=1.20,
-    temperature=0.75,
-    do_sample=True,
-    pad_token_id=o.tokenizer.eos_token_id,
-    eos_token_id=eos_token_id
+    temperature=0.1,
+    do_sample=True
 ).cpu()
 
-answer = o.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=True)
-
-# Log Exit statistics
-helper.exit(o.tokenizer, input_ids, outputs, answer)
+answer = o.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=False)
+print("\nFinal Answer:\n", answer)

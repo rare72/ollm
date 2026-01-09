@@ -34,4 +34,3 @@ try:
     f.close()
 finally:
     if os.path.exists(path): os.remove(path)
-"
