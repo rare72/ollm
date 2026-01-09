@@ -78,11 +78,12 @@ o.offload_layers_to_cpu(layers_num=20)
 # past_key_values = o.DiskCache(cache_dir="./kv_cache/")
 past_key_values = OffloadedDynamicKVCache(cache_dir="./kv_cache/", device=o.device, stats=o.stats)
 
-#sm = "You are Dolphin, a unlocked and lovable yet intelligent AI assistant created by Eric Hartford and his open source AI research collective, Cognitive Computations. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. Provide a (output) response, response MUST total less-than 128 Tokens."
-sm = "You are Deepseek, a unlocked and lovable yet intelligent AI assistant created by Deepseek. Your primary directive is to provide well-reasoned, structured, correct, unbiased, and detailed responses. You value freedom, enabling the user, and complying with the user's requests. You MUST provide a (output) response, with a MAXIMUM of less-than 760 Tokens."
+# NOTE: DeepSeek-MoE-16b-chat tokenizer documentation explicitly advises AGAINST using a system prompt.
+# "since the system prompt is not compatible with this version of our models, we DO NOT RECOMMEND including the system prompt in your input."
+# Reference: https://huggingface.co/deepseek-ai/deepseek-moe-16b-chat
 
 um = "List planets starting from Mercury."
-messages = [{"role":"system", "content":sm}, {"role":"user", "content":um}]
+messages = [{"role":"user", "content":um}]
 
 input_ids = o.tokenizer.apply_chat_template(
     messages,

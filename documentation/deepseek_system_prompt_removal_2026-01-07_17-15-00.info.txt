@@ -1,0 +1,19 @@
+Summary of Changes:
+Modified `scripts/example_deepseek_moe.py` to adhere to the official DeepSeek-MoE-16b-chat model guidance. The model card explicitly states that System Prompts are not compatible and should not be used.
+
+Detailed Implementation Notes:
+- **`scripts/example_deepseek_moe.py`**:
+    - Removed the `sm` (system message) variable entirely.
+    - Updated the `messages` list to contain ONLY the user message (`um`).
+    - Added a comment block referencing the Hugging Face model card URL and the specific warning about system prompt incompatibility.
+    - Kept `add_generation_prompt=True` as this is standard for chat models to correctly format the turn (appending `<|Assistant|>`), while relying on the tokenizer's default behavior for BOS tokens.
+
+Fixes & Caveats:
+- **Fix:** Addressed potential model confusion or degradation caused by including a system prompt where it is not supported.
+- **Caveat:** The model is now purely user-prompt driven. Instructions previously in the system prompt (e.g., "be concise") must be moved to the user prompt if still required.
+
+Usage Instructions:
+- Run `scripts/example_deepseek_moe.py` as usual. The input will now consist solely of the user query.
+
+Technical Metrics:
+- N/A
