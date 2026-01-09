@@ -88,7 +88,8 @@ messages = [{"role":"system", "content":sm}, {"role":"user", "content":um}]
 input_ids = o.tokenizer.apply_chat_template(
     messages,
     tokenize=True,
-    add_generation_prompt=True,
+    #add_generation_prompt=True,
+    add_generation_prompt=False,
     return_tensors="pt"
 ).to(o.device)
 
@@ -97,7 +98,9 @@ print(f"Pre-fill complete. Input tokens: {input_ids.shape[1]}")
 attention_mask = torch.ones_like(input_ids)
 
 # Initialize DebugStreamer with input_ids to compare against
-debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=False)
+#debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=False)
+debug_streamer = DebugStreamer(o.tokenizer, input_ids, skip_prompt=True, skip_special_tokens=True)
+
 
 # Explicitly handle stopping conditions to prevent runaway generation
 # This is critical for models that might not default to the correct EOS token when templates are manually manipulated
@@ -119,13 +122,15 @@ outputs = o.model.generate(
     past_key_values=past_key_values,
     max_new_tokens=768, # Reduced for debugging
     streamer=debug_streamer,
-    temperature=0.075,
+    #temperature=0.075,
+    #temperature=1.20,
+    temperature=0.75,
     do_sample=True,
     pad_token_id=o.tokenizer.eos_token_id,
     eos_token_id=eos_token_id
 ).cpu()
 
-answer = o.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=False)
+answer = o.tokenizer.decode(outputs[0][input_ids.shape[-1]:], skip_special_tokens=True)
 
 # Log Exit statistics
 helper.exit(o.tokenizer, input_ids, outputs, answer)
