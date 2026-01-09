@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ollm"
-version = "1.0.3"
+version = "1.0.4"
 description = "LLM Inference for Large-Context Offline Workloads"
 authors = [
   { name="Anuar Sharafudinov", email="anuarsh@ailabs.us" }
