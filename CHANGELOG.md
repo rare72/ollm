@@ -3,11 +3,11 @@
 ## [1.0.4] - 2025-05-18
 
 ### Added
-- **DeepSeek-MoE Support**: Full support for DeepSeek-MoE architectures, including specialized offloading strategies and OOM prevention.
+- **DeepSeek-MoE Support**: Full support for DeepSeek-MoE architectures, including specialized offloading strategies and OOM prevention.  [TESTED & WORKING, 20260109]
 - **SSD Offloading**: Enhanced `OffloadedDynamicKVCache` to support "Flowing" weights and direct disk-to-GPU streaming for large context models.
-- **Falcon3 & Dolphin Support**: Added support for Falcon3-MoE and Dolphin-24B (Mistral based) models.
-- **Multimodal Support**: Added support for multimodal models like `voxtral-small-24B` (audio) and `gemma3-12B` (image).
-- **Qwen3-Next Support**: Added support for the massive 160GB `qwen3-next-80B` model.
+- **Falcon3 & Dolphin Support**: Added support for Falcon3-MoE and Dolphin-24B (Mistral based) models.  [NOT TESTED Yet, 20260109]
+- **Multimodal Support**: Added support for multimodal models like `voxtral-small-24B` (audio) and `gemma3-12B` (image).    [NOT TESTED Yet, 20260109]
+- **Qwen3-Next Support**: Added support for the massive 160GB `qwen3-next-80B` model.   [NOT TESTED Yet, 20260109]
 
 ### Fixed
 - **OOM Prevention**: Implemented `OffloadedDynamicKVCache` to prevent Out Of Memory errors on consumer GPUs by offloading KV cache to SSD.
