@@ -22,7 +22,10 @@ To enable `XIELU` in your own scripts, ensure the `xielu` package is installed a
 
 ```python
 from ollm import Inference
-import xielu  # Ensure this is imported
+try:
+    from xielu.ops.wrappers import XIELU
+except ImportError:
+    XIELU = None
 
 # ... initialize inference ...
 o = Inference("deepseek-moe", device="cuda:0")

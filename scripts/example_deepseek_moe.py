@@ -13,10 +13,10 @@ from transformers import AutoTokenizer
 
 # Check for XIELU dependency (Critical for DeepSeek accuracy/performance)
 try:
-    import xielu
+    from xielu.ops.wrappers import XIELU as XIELU_KERNEL
     print("[INFO] XIELU custom kernel loaded successfully.")
 except ImportError:
-    xielu = None
+    XIELU_KERNEL = None
     print("\n[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.")
     print("Please ensure the environment is set up with the required custom CUDA kernels.\n")
 
@@ -28,7 +28,7 @@ def replace_activations_with_xielu(model):
     Usage:
         replace_activations_with_xielu(o.model)
     """
-    if xielu is None:
+    if XIELU_KERNEL is None:
         print("[WARNING] XIELU module not available. Skipping activation replacement.")
         return
 
@@ -50,7 +50,7 @@ def replace_activations_with_xielu(model):
 
             # Initialize XIELU with default recommended parameters
             # alpha_p_init=0.8, alpha_n_init=0.8, beta=0.5
-            module.act_fn = xielu.XIELU(
+            module.act_fn = XIELU_KERNEL(
                 alpha_p_init=0.8,
                 alpha_n_init=0.8,
                 beta=0.5,
