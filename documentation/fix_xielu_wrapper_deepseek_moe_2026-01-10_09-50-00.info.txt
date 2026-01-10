@@ -1,0 +1,22 @@
+Task: Fix XIELU Wrapper in DeepSeek Example Script
+Date: 2026-01-10
+Status: Completed
+
+Problem:
+The `XIELU` custom activation kernel caused an `IndexError: Dimension out of range` when used in `scripts/example_deepseek_moe.py`. The error message indicated the kernel expected a 3D input tensor but received a 2D tensor. This was traced back to the `XIELUWrapper.forward` method, which was explicitly flattening 3D inputs to 2D before passing them to the kernel.
+
+Solution:
+Modified the `XIELUWrapper` logic in `scripts/example_deepseek_moe.py` to ensure inputs are at least 3D.
+- Instead of flattening 3D inputs to 2D, the wrapper now unsqueezes 2D inputs `(N, H)` to 3D `(1, N, H)`.
+- 3D inputs `(B, S, H)` are passed through as is.
+- The output from the kernel is then reshaped back to the original input shape to maintain compatibility with the model's computation graph.
+
+Verification:
+- A standalone verification script `scripts/verify_xielu_wrapper.py` was created to test the wrapper logic with a mocked kernel.
+- The test verified that both 2D and 3D inputs are correctly processed and result in the expected output shapes without errors.
+- The modification was applied to the main script `scripts/example_deepseek_moe.py`.
+
+Key Learnings:
+- The `XIELU` custom kernel implementation (`torch.ops.xielu.forward_impl`) requires 3D input tensors.
+- Wrappers for custom kernels must carefully manage tensor dimensionality to match specific kernel requirements vs. the model's standard data flow (which may use flattened 2D tensors in MoE layers).
+- Creating isolated reproduction/verification scripts with mocked components is an effective way to debug shape mismatches when full model execution is not feasible.
