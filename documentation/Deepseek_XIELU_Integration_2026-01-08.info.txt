@@ -1,0 +1,57 @@
+
+# DeepSeek XIELU Integration Documentation
+
+## Overview
+This document details the implementation of the `XIELU` custom CUDA activation function for DeepSeek MoE models. The integration allows for dynamic swapping of the activation function at runtime, enabling optimized performance on supported hardware without modifying the core library code.
+
+## XIELU Implementation
+The `XIELU` activation function is a custom kernel designed for high-performance inference. Since `DeepSeek` models default to `silu` (Sigmoid Linear Unit) in their configuration, a mechanism was required to override this behavior when the `xielu` library is present in the environment.
+
+### Mechanism
+The integration is handled within the inference script (`scripts/example_deepseek_moe.py`) rather than the core `ollm` library. This approach maintains library stability while offering flexibility for specific deployments.
+
+1. **Detection:** The script attempts to import `xielu` at the beginning. If the module is missing, a warning is logged, and the model falls back to the default activation.
+2. **Replacement:** A helper function `replace_activations_with_xielu(model)` is provided. This function:
+   - Iterates through all modules in the model.
+   - Identifies modules with an `act_fn` attribute (specifically `DeepseekMLP`).
+   - Replaces the existing activation function with an instance of `XIELU`.
+   - Automatically detects the device of the module parameters to ensure the kernel is initialized on the correct GPU.
+
+### Usage
+To enable `XIELU` in your own scripts, ensure the `xielu` package is installed and follow this pattern:
+
+```python
+from ollm import Inference
+import xielu  # Ensure this is imported
+
+# ... initialize inference ...
+o = Inference("deepseek-moe", device="cuda:0")
+o.ini_model(models_dir="./models/")
+
+# Define the replacement logic (or copy from example_deepseek_moe.py)
+def replace_activations_with_xielu(model):
+    # ... implementation ...
+    pass
+
+# Apply the swap
+replace_activations_with_xielu(o.model)
+
+# Continue with offloading and generation
+o.offload_layers_to_cpu(layers_num=20)
+```
+
+## Logging Updates
+The logging format has been enhanced to provide better visibility into the initialization process and configuration state.
+
+### Changes
+- **Configuration Printing:** The `[INIT]` block now prints the **entire** configuration object key-value pairs alphabetically. This ensures all model parameters (vocab size, hidden dimensions, etc.) are visible in the logs.
+- **Initialization Sequence:** The "Pre-fill complete" log message has been moved/tagged to appear within the `[INIT]` context, clearer delineating the setup phase from the generation phase.
+
+### Verification
+To verify `xielu` is active:
+1. Run the script `scripts/example_deepseek_moe.py`.
+2. Check the logs for the message: `[INFO] XIELU custom kernel loaded successfully.`
+3. Look for the initialization log: `[INIT] Replacing activations with XIELU...` followed by `[INIT] Replaced X activation functions with XIELU.`
+
+If `xielu` is missing, the logs will show:
+`[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy...`

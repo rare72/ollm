@@ -16,8 +16,50 @@ try:
     import xielu
     print("[INFO] XIELU custom kernel loaded successfully.")
 except ImportError:
+    xielu = None
     print("\n[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.")
     print("Please ensure the environment is set up with the required custom CUDA kernels.\n")
+
+def replace_activations_with_xielu(model):
+    """
+    Replaces the activation function in DeepseekMLP modules with the XIELU kernel.
+    To enable XIELU, call this function after model initialization and before inference.
+
+    Usage:
+        replace_activations_with_xielu(o.model)
+    """
+    if xielu is None:
+        print("[WARNING] XIELU module not available. Skipping activation replacement.")
+        return
+
+    print("[INIT] Replacing activations with XIELU...")
+    count = 0
+    # Walk through all modules
+    for name, module in model.named_modules():
+        # Check if the module has an 'act_fn' attribute (target DeepseekMLP)
+        if hasattr(module, 'act_fn'):
+            # Replace with XIELU instance on the correct device
+            # We assume model.device is available or derived from parameters
+            try:
+                first_param = next(module.parameters())
+                device = first_param.device
+                dtype = first_param.dtype
+            except StopIteration:
+                device = torch.device("cuda") # Default fallback
+                dtype = torch.bfloat16
+
+            # Initialize XIELU with default recommended parameters
+            # alpha_p_init=0.8, alpha_n_init=0.8, beta=0.5
+            module.act_fn = xielu.XIELU(
+                alpha_p_init=0.8,
+                alpha_n_init=0.8,
+                beta=0.5,
+                device=device,
+                dtype=dtype
+            )
+            count += 1
+
+    print(f"[INIT] Replaced {count} activation functions with XIELU.")
 
 # Model: deepseek-moe-16b-chat
 # Speedtest trigger:
@@ -67,6 +109,11 @@ helper = ScriptHelper(o)
 helper.init()
 
 o.ini_model(models_dir="./models/", force_download=False)
+
+# Enable XIELU activation if available
+if hasattr(o, "model"):
+    replace_activations_with_xielu(o.model)
+
 # Check activation function configuration now that model is loaded
 if hasattr(o.model, "config"):
     helper.print_config(o.model.config)
@@ -93,7 +140,7 @@ input_ids = o.tokenizer.apply_chat_template(
     return_tensors="pt"
 ).to(o.device)
 
-print(f"Pre-fill complete. Input tokens: {input_ids.shape[1]}")
+print(f"[INIT] Pre-fill complete. Input tokens: {input_ids.shape[1]}")
 
 attention_mask = torch.ones_like(input_ids)
 

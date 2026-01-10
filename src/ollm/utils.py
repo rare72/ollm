@@ -109,10 +109,16 @@ class ScriptHelper:
     def print_config(self, config):
         """Helper to print config details if they weren't ready at init"""
         print(f"[INIT] Configuration loaded.")
-        if hasattr(config, 'hidden_act'):
-            print(f"[INIT] Model hidden_act: {config.hidden_act}")
-        elif hasattr(config, 'activation_function'):
-            print(f"[INIT] Model activation_function: {config.activation_function}")
+
+        # Iterate through the entire config object and print all key-value pairs
+        config_dict = {}
+        if hasattr(config, "to_dict"):
+            config_dict = config.to_dict()
+        elif hasattr(config, "__dict__"):
+            config_dict = config.__dict__
+
+        for key, value in sorted(config_dict.items()):
+            print(f"[INIT] {key}: {value}")
 
     def exit(self, tokenizer, input_ids, output_ids, final_answer):
         self.end_time = time.time()
