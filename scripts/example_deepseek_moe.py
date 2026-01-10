@@ -20,6 +20,29 @@ except ImportError:
     print("\n[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.")
     print("Please ensure the environment is set up with the required custom CUDA kernels.\n")
 
+class XIELUWrapper(torch.nn.Module):
+    """
+    Wrapper for XIELU kernel to handle tensor reshaping.
+    DeepSeekMLP passes 3D tensors (B, S, H), but XIELU optimized kernel
+    often expects 2D flattened inputs (N, H).
+    """
+    def __init__(self, device=None, dtype=None):
+        super().__init__()
+        # Initialize the underlying kernel
+        self.xielu = XIELU_KERNEL().to(device=device, dtype=dtype)
+
+    def forward(self, x):
+        orig_shape = x.shape
+        # If input is 3D or higher, flatten to 2D [Batch*Seq, Hidden]
+        if x.dim() > 2:
+            x = x.view(-1, x.shape[-1])
+
+        # Pass to kernel
+        out = self.xielu(x)
+
+        # Reshape back to original dimensions
+        return out.view(orig_shape)
+
 def replace_activations_with_xielu(model):
     """
     Replaces the activation function in DeepseekMLP modules with the XIELU kernel.
@@ -48,9 +71,8 @@ def replace_activations_with_xielu(model):
                 device = torch.device("cuda") # Default fallback
                 dtype = torch.bfloat16
 
-            # Initialize XIELU
-            # Using standard PyTorch module pattern: init then move to device/dtype
-            module.act_fn = XIELU_KERNEL().to(device=device, dtype=dtype)
+            # Initialize XIELU Wrapper
+            module.act_fn = XIELUWrapper(device=device, dtype=dtype)
             count += 1
 
     print(f"[INIT] Replaced {count} activation functions with XIELU.")
