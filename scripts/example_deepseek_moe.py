@@ -33,9 +33,13 @@ class XIELUWrapper(torch.nn.Module):
 
     def forward(self, x):
         orig_shape = x.shape
-        # If input is 3D or higher, flatten to 2D [Batch*Seq, Hidden]
-        if x.dim() > 2:
-            x = x.view(-1, x.shape[-1])
+        # If input is 2D (N, H), reshape to (1, N, H)
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+
+        # Ensure contiguity for custom CUDA kernel
+        if not x.is_contiguous():
+            x = x.contiguous()
 
         # Pass to kernel
         out = self.xielu(x)
