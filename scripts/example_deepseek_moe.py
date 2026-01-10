@@ -48,15 +48,9 @@ def replace_activations_with_xielu(model):
                 device = torch.device("cuda") # Default fallback
                 dtype = torch.bfloat16
 
-            # Initialize XIELU with default recommended parameters
-            # alpha_p_init=0.8, alpha_n_init=0.8, beta=0.5
-            module.act_fn = XIELU_KERNEL(
-                alpha_p_init=0.8,
-                alpha_n_init=0.8,
-                beta=0.5,
-                device=device,
-                dtype=dtype
-            )
+            # Initialize XIELU
+            # Using standard PyTorch module pattern: init then move to device/dtype
+            module.act_fn = XIELU_KERNEL().to(device=device, dtype=dtype)
             count += 1
 
     print(f"[INIT] Replaced {count} activation functions with XIELU.")
