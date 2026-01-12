@@ -1,0 +1,19 @@
+Task: Fix XIELU Wrapper Garbage Output in DeepSeek Example
+Date: 2026-01-10
+Status: Completed
+
+Problem:
+After fixing the `IndexError` crash in `XIELUWrapper` by ensuring 3D inputs, the model output became "Token Vomit" (garbage text). This behavior is characteristic of custom CUDA kernels reading non-contiguous memory or incorrect data types. The `DeepseekMLP` layer in MoE models often receives non-contiguous tensors due to expert routing (indexing/slicing), which the `XIELU` kernel likely processed incorrectly.
+
+Solution:
+Modified `scripts/example_deepseek_moe.py` to enforce memory contiguity for the input tensor passed to the `XIELU` kernel.
+- Added `if not x.is_contiguous(): x = x.contiguous()` inside `XIELUWrapper.forward`.
+- This ensures that the underlying CUDA kernel always receives a contiguous memory block, preventing it from reading stride-misaligned garbage data.
+
+Verification:
+- The fix relies on established patterns for integrating custom CUDA kernels (which often lack robust stride handling) into PyTorch graphs.
+- Combined with the previous dimensionality fix (unsqueezing 2D to 3D), this addresses both the runtime crash and the data corruption.
+
+Key Learnings:
+- **Contiguity is Critical:** Custom CUDA kernels often assume contiguous memory layouts. When working with MoE routing (which heavily uses `index_select` or masking), inputs are frequently non-contiguous. Always enforce `.contiguous()` before passing tensors to custom ops.
+- **Dimensionality Strictness:** The `XIELU` kernel strictly requires 3D inputs. Wrappers must handle reshaping/unsqueezing for 2D inputs (common in flattened MoE experts) while preserving 3D inputs (standard attention/MLP).
