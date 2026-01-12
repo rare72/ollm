@@ -40,7 +40,6 @@ class XIELUWrapper(torch.nn.Module):
         # Enforce contiguous memory layout for the kernel
         x = x.contiguous()
 
-
         # Pass to kernel
         out = self.xielu(x)
 
