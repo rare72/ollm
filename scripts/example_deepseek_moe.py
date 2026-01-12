@@ -37,6 +37,9 @@ class XIELUWrapper(torch.nn.Module):
         if x.dim() == 2:
             x = x.unsqueeze(0)
 
+        # Enforce contiguous memory layout for the kernel
+        x = x.contiguous()
+
         # Pass to kernel
         out = self.xielu(x)
 
