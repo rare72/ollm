@@ -11,14 +11,15 @@ from ollm.utils import ScriptHelper
 import torch
 from transformers import AutoTokenizer
 
-# Check for XIELU dependency (Critical for DeepSeek accuracy/performance)
+# Check for XIELU dependency
+# Note: This kernel is currently disabled by default in the execution flow below
+# because it is mathematically incompatible with standard SiLU-trained DeepSeek models.
 try:
     from xielu.ops.wrappers import XIELU as XIELU_KERNEL
-    print("[INFO] XIELU custom kernel loaded successfully.")
+    print("[INFO] XIELU custom kernel library available (but disabled by default).")
 except ImportError:
     XIELU_KERNEL = None
-    print("\n[WARNING] 'xielu' module not found! DeepSeek models may experience reduced accuracy ('misspellings') or performance.")
-    print("Please ensure the environment is set up with the required custom CUDA kernels.\n")
+    print("\n[INFO] 'xielu' module not found. Using standard PyTorch SiLU (recommended for standard checkpoints).")
 
 class XIELUWrapper(torch.nn.Module):
     """
@@ -130,8 +131,11 @@ helper.init()
 o.ini_model(models_dir="./models/", force_download=False)
 
 # Enable XIELU activation if available
-if hasattr(o, "model"):
-    replace_activations_with_xielu(o.model)
+# NOTE: Disabled by default because standard DeepSeek checkpoints use SiLU.
+# Enabling XIELU (a different mathematical function) on SiLU weights causes garbage output ("Token Vomit").
+# Only uncomment this if you are using a model specifically trained or fine-tuned with XIELU.
+# if hasattr(o, "model"):
+#     replace_activations_with_xielu(o.model)
 
 # Check activation function configuration now that model is loaded
 if hasattr(o.model, "config"):
